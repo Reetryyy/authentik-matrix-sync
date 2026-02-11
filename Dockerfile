@@ -1,3 +1,19 @@
+# Build stage
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# Install build dependencies for matrix-nio (olm)
+RUN apt-get update && apt-get install -y \
+  build-essential \
+  libolm-dev \
+  git \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Final stage
 FROM python:3.11-slim
 
 # Create a non-root user
@@ -5,12 +21,16 @@ RUN useradd -m -u 1000 botuser
 
 WORKDIR /app
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Install runtime dependencies for matrix-nio (libolm)
+RUN apt-get update && apt-get install -y \
+  libolm3 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy installed python packages from builder
+COPY --from=builder /install /usr/local
 
 # Copy application code
-COPY . .
+COPY bot.py config.py healthcheck.py requirements.txt ./
 
 # Create data directory and set permissions
 RUN mkdir -p /app/data && chown -R botuser:botuser /app/data

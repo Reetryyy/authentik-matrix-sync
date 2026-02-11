@@ -54,8 +54,15 @@ def get_authentik_group_members(group_name):
     
     # 1. Find Group ID
     url = f"{config.authentik_url}/api/v3/core/groups/?name={group_name}"
-    resp = requests.get(url, headers=headers)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.error(f"Permission invalid for Authentik. Ensure the Token has 'authentik_core.view_group' permission. Error: {e}")
+            return []
+        raise e
+        
     data = resp.json()
     if not data['results']:
         logger.error(f"Authentik Group not found: {group_name}")
@@ -68,8 +75,15 @@ def get_authentik_group_members(group_name):
     # it's often user-centric or requires filtering users by group.
     # We can filter users by group__name
     url = f"{config.authentik_url}/api/v3/core/users/?groups__name={group_name}"
-    resp = requests.get(url, headers=headers)
-    resp.raise_for_status()
+    try:
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            logger.error(f"Permission invalid for Authentik. Ensure the Token has 'authentik_core.view_user' permission. Error: {e}")
+            return []
+        raise e
+        
     users = resp.json()['results']
     
     # Extract Matrix IDs
