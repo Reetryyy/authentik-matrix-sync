@@ -24,6 +24,34 @@ The bot is configured entirely via Environment Variables.
 | :--- | :--- | :--- |
 | `AUTHENTIK_URL` | Base URL of your Authentik instance (e.g., `https://auth.example.com`) | Required |
 | `AUTHENTIK_TOKEN` | Authentik API Token | Required |
+
+### Authentik Token Permissions
+The Authentik Token requires **Read-Only** access. Specifically, it needs permissions to:
+- `authentik_core.view_group` (View Groups)
+- `authentik_core.view_user` (View Users)
+
+#### How to create the Token (Service Account)
+1.  **Create Service Account**:
+    - Go to **Directory** > **Users**.
+    - Click **Create Service Account**.
+    - Name: `matrix-sync-bot`.
+    - Create.
+2.  **Assign Permissions**:
+    - Click on the newly created `matrix-sync-bot` user.
+    - Go to the **Permissions** tab.
+    - Click **Assign new permission**.
+    - Search for `view_group` and select `authentik_core | group | Can view group`.
+    - Search for `view_user` and select `authentik_core | user | Can view user`.
+    - Click **Assign**.
+    - *Note: Ensure you are assigning these as "Global Permissions" (default when added here), not Object permissions.*
+3.  **Generate Token**:
+    - Go to **Directory** > **Tokens & App passwords**.
+    - Click **Create**.
+    - **Identifier**: `matrix-sync-token` (or unique name).
+    - **User**: Select `matrix-sync-bot`.
+    - **Expiring**: Turn *off* (unless you want to rotate it).
+    - Click **Create**.
+    - Copy the **Key** (this is your `AUTHENTIK_TOKEN`).
 | `MATRIX_HOMESERVER_URL` | Base URL of your Matrix Homeserver (e.g., `https://matrix.example.com`) | Required |
 | `MATRIX_USER_ID` | The user ID of the bot (e.g., `@bot:example.com`) | Required |
 | `MATRIX_ACCESS_TOKEN` | Access token for the bot user | Required |
