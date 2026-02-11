@@ -24,18 +24,6 @@ The bot is configured entirely via Environment Variables.
 | :--- | :--- | :--- |
 | `AUTHENTIK_URL` | Base URL of your Authentik instance (e.g., `https://auth.example.com`) | Required |
 | `AUTHENTIK_TOKEN` | Authentik API Token | Required |
-
-### Authentik Token Permissions
-The Authentik Token requires **Read-Only** access. Specifically, it needs permissions to:
-- `authentik_core.view_group` (View Groups)
-- `authentik_core.view_user` (View Users)
-
-### Authentik Token Permissions
-The Authentik Token requires **Read-Only** access. Specifically, it needs permissions to:
-- `authentik_core.view_group` (View Groups)
-- `authentik_core.view_user` (View Users)
-
-Please refer to the detailed [Authentik Setup Guide](docs/authentik_setup.md) for instructions on creating the Service Account and assigning the Role.
 | `MATRIX_HOMESERVER_URL` | Base URL of your Matrix Homeserver (e.g., `https://matrix.example.com`) | Required |
 | `MATRIX_USER_ID` | The user ID of the bot (e.g., `@bot:example.com`) | Required |
 | `MATRIX_ACCESS_TOKEN` | Access token for the bot user | Required |
@@ -46,6 +34,13 @@ Please refer to the detailed [Authentik Setup Guide](docs/authentik_setup.md) fo
 | `REMOVE_ACTION` | Action to take on removal: `kick` or `ban` | `kick` |
 | `DB_BACKUP_RETENTION_COUNT` | Number of database backups to keep | `3` |
 | `LOG_LEVEL` | Logging verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
+
+### Authentik Token Permissions
+The Authentik Token requires **Read-Only** access. Specifically, it needs permissions to:
+- `authentik_core.view_group` (View Groups)
+- `authentik_core.view_user` (View Users)
+
+Please refer to the detailed [Authentik Setup Guide](docs/authentik_setup.md) for instructions on creating the Service Account and assigning the Role.
 
 ### Mapping Configuration (`SYNC_MAPPINGS`)
 
