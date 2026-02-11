@@ -71,10 +71,8 @@ def get_authentik_group_members(group_name):
     group_pk = data['results'][0]['pk']
     
     # 2. Get Members
-    # Authentik doesn't have a direct "get members of group" endpoint in v3 core/groups usually,
-    # it's often user-centric or requires filtering users by group.
-    # We can filter users by group__name
-    url = f"{config.authentik_url}/api/v3/core/users/?groups__name={group_name}"
+    # We use the group PK to filter users, which is more reliable than name
+    url = f"{config.authentik_url}/api/v3/core/users/?groups={group_pk}"
     try:
         resp = requests.get(url, headers=headers)
         resp.raise_for_status()
