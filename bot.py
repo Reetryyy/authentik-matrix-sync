@@ -11,7 +11,7 @@ from config import config
 
 logger = logging.getLogger("bot")
 
-__version__ = "1.0.0"
+__version__ = "1.1.6"
 
 DB_PATH = "/app/data/sync.db"
 
@@ -47,42 +47,51 @@ def backup_db():
     except Exception as e:
         logger.error(f"Backup failed: {e}")
 
-def get_authentik_group_members(group_name):
-    # This requires looking up group ID first or using a filter
-    # Assuming group_name is unique
+def get_authentik_group_members(group_name=None, group_pk=None):
+    # If PK is provided, we skip the lookup
     headers = {"Authorization": f"Bearer {config.authentik_token}"}
     
-    # 1. Find Group ID
-    url = f"{config.authentik_url}/api/v3/core/groups/?name={group_name}"
-    try:
-        resp = requests.get(url, headers=headers)
-        resp.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        if e.response.status_code == 403:
-            logger.error(f"Permission invalid for Authentik. Ensure the Token has 'authentik_core.view_group' permission. Error: {e}")
+    if not group_pk:
+        if not group_name:
+            logger.error("get_authentik_group_members requires either group_name or group_pk")
             return []
-        raise e
+            
+        # 1. Find Group ID
+        # Note: This requires 'authentik_core.view_group' permission on the token
+        url = f"{config.authentik_url}/api/v3/core/groups/?name={group_name}"
+        try:
+            resp = requests.get(url, headers=headers)
+            resp.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                logger.error(f"Permission denied looking up group '{group_name}'. Ensure Token has 'authentik_core.view_group'. Or use 'group_pk' in config.")
+                return []
+            raise e
+            
+        data = resp.json()
+        if not data['results']:
+            logger.error(f"Authentik Group not found: {group_name}")
+            return []
         
-    data = resp.json()
-    if not data['results']:
-        logger.error(f"Authentik Group not found: {group_name}")
-        return []
-    
-    group_pk = data['results'][0]['pk']
+        group_pk = data['results'][0]['pk']
     
     # 2. Get Members
     # We use the group PK to filter users, which is more reliable than name
-    url = f"{config.authentik_url}/api/v3/core/users/?groups={group_pk}"
+    # Fix: Authentik v3 uses 'groups_by_pk' filter, 'groups' is ignored.
+    url = f"{config.authentik_url}/api/v3/core/users/?groups_by_pk={group_pk}"
+    name_log = group_name or group_pk
+    logger.debug(f"Fetching members for group {name_log} (PK: {group_pk}) from {url}")
     try:
         resp = requests.get(url, headers=headers)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
-            logger.error(f"Permission invalid for Authentik. Ensure the Token has 'authentik_core.view_user' permission. Error: {e}")
+            logger.error(f"Permission denied fetching users for group {name_log}. Ensure Token has 'authentik_core.view_user' permission.")
             return []
         raise e
         
     users = resp.json()['results']
+    logger.debug(f"Found {len(users)} users in group {name_log}")
     
     # Extract Matrix IDs
     # Assuming Matrix ID is stored in 'attributes' under 'matrix_id' OR we derive it from username
@@ -169,15 +178,18 @@ def sync_job():
     
     for mapping in config.mappings:
         group = mapping.get('group')
+        group_pk = mapping.get('group_pk')
         space = mapping.get('space')
         method = mapping.get('method', config.join_method) # Local override or global
         
-        if not group or not space:
+        if (not group and not group_pk) or not space:
+            logger.warning(f"Invalid mapping found: {mapping}. Skipping.")
             continue
             
-        logger.info(f"Syncing Group '{group}' to Space '{space}'")
+        group_log = group or group_pk
+        logger.info(f"Syncing Group '{group_log}' to Space '{space}'")
         
-        auth_members = set(get_authentik_group_members(group))
+        auth_members = set(get_authentik_group_members(group_name=group, group_pk=group_pk))
         matrix_members = set(get_matrix_room_members(space))
         
         # ADD USERS
@@ -234,11 +246,48 @@ def sync_job():
     conn.close()
     logger.info("Sync job finished.")
 
+def check_connections(max_retries=5, delay=5):
+    logger.info("Verifying connections to Authentik and Matrix...")
+    
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Check Authentik
+            # Check groups, as we know we need view_group permission
+            headers = {"Authorization": f"Bearer {config.authentik_token}"}
+            resp = requests.get(f"{config.authentik_url}/api/v3/core/groups/?page_size=1", headers=headers, timeout=10)
+            resp.raise_for_status()
+            
+            # Check Matrix
+            # Using versions endpoint as it's public and fast
+            resp = requests.get(f"{config.matrix_homeserver}/_matrix/client/versions", timeout=10)
+            resp.raise_for_status()
+            
+            logger.info("Connections established successfully.")
+            return True
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                logger.warning(f"Startup check failed with 403 Forbidden (Attempt {attempt}/{max_retries}). "
+                               f"Token might be scoped strictly to specific resources. Proceeding with caution.")
+                return True
+            raise e
+        except Exception as e:
+            logger.warning(f"Connection check failed (Attempt {attempt}/{max_retries}): {e}")
+            if attempt < max_retries:
+                time.sleep(delay)
+            else:
+                logger.error("Could not establish connections after multiple attempts. Exiting.")
+                return False
+
+
 def run():
     if not config.validate():
         sys.exit(1)
     
     logger.info(f"Starting Authentik-Matrix Sync Bot v{__version__}")
+    
+    if not check_connections():
+        sys.exit(1)
+        
     init_db()
     
     # Run once immediately

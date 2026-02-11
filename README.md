@@ -16,6 +16,12 @@ A Dockerized Python bot that synchronizes user membership from [Authentik](https
     - **Retention Policy**: Automatically rotates old backups to save space.
 - **Health Monitoring**: Built-in healthcheck script and endpoint.
 
+## Requirements
+
+- **Authentik**: Version 2022.4.1+ (API v3 support).
+- **Matrix Synapse**: Version 1.60.0+ (Admin API v1 stability).
+- **Python**: 3.11+ (if running without Docker).
+
 ## Configuration
 
 The bot is configured entirely via Environment Variables.
@@ -26,7 +32,7 @@ The bot is configured entirely via Environment Variables.
 | `AUTHENTIK_TOKEN` | Authentik API Token | Required |
 | `MATRIX_HOMESERVER_URL` | Base URL of your Matrix Homeserver (e.g., `https://matrix.example.com`) | Required |
 | `MATRIX_USER_ID` | The user ID of the bot (e.g., `@bot:example.com`) | Required |
-| `MATRIX_ACCESS_TOKEN` | Access token for the bot user | Required |
+| `MATRIX_ACCESS_TOKEN` | Access token for the bot user (See [Matrix Setup Guide](docs/matrix_setup.md)) | Required |
 | `SYNC_MAPPINGS` | JSON string defining the sync logic (see below) | `[]` |
 | `JOIN_METHOD` | How to add users: `invite` or `force` (requires Admin) | `invite` |
 | `SYNC_INTERVAL_SECONDS` | How often to run the sync job | `60` |
@@ -50,12 +56,13 @@ This variable expects a JSON string array of objects:
 [
   {
     "group": "Authentik Group Name",
+    "group_pk": "optional-uuid-to-skip-lookup",
     "space": "!matrixRoomOrSpaceId:example.com",
     "method": "force" 
   }
 ]
 ```
-*Note: `method` in the mapping is optional and overrides the global `JOIN_METHOD`.*
+*Note: `method` is optional. `group_pk` is optional but recommended if your token lacks `view_group` permission (allows skipping name lookup).*
 
 ## Deployment (Docker Compose)
 
@@ -90,7 +97,6 @@ volumes:
 
 ## Contributors
 
-- **Kakha** - Idea, Code review, Testing
 - **Antigravity** (Google DeepMind) - Implementation
 
 ## License
