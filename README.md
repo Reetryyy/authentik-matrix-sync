@@ -83,7 +83,7 @@ volumes:
 
 ## Contributors
 
-- **kaxak** - Initial Idea & Requirements
+- **Kakha** - Idea, Code review, Testing
 - **Antigravity** (Google DeepMind) - Implementation
 
 ## License

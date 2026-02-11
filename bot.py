@@ -11,6 +11,8 @@ from config import config
 
 logger = logging.getLogger("bot")
 
+__version__ = "1.0.0"
+
 DB_PATH = "/app/data/sync.db"
 
 def init_db():
@@ -223,7 +225,8 @@ def sync_job():
 def run():
     if not config.validate():
         sys.exit(1)
-        
+    
+    logger.info(f"Starting Authentik-Matrix Sync Bot v{__version__}")
     init_db()
     
     # Run once immediately
